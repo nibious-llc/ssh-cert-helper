@@ -15,30 +15,28 @@ __license__ = "LGPL2.1"
 
 def getListOfCertificates():
 	results = []
-	sshDir = str(Path.home()) + "/.ssh"
+	sshDir = str(Path.home()) + "/.ssh/"
 	for file in os.listdir(sshDir):
 		if fnmatch.fnmatch(file, '*-cert.pub'):
-				results.append(file)
+			with open(sshDir + file, 'r') as f:
+				results.append({ 'file': file, 'contents': f.readline().split(" ")[1].strip()}) # Get just the key part
 	return results
 
 def getListOfCurrentLoadedCertificates():
-	p = subprocess.Popen(['ssh-add', '-l'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+	p = subprocess.Popen(['ssh-add', '-L'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 	stdout, stderr = p.communicate()
 	result = []
-	for s in [ x for x in str(stdout).split('\\n')  if "CERT" in x]:
-		cert = os.path.basename(s.split(" ")[2])
-		result.append(cert)
-
+	for s in [ x for x in str(stdout).split('\\n')  if "cert" in x]:
+		result.append(s.split(" ")[1].strip()) # get just the key part
 	return result
 
 def main():
 	""" Main entry point of the app """
 	certs = getListOfCertificates()
 	loadedCerts = getListOfCurrentLoadedCertificates()
-	
-	for priv in [ x[:-9] for x in certs]: # remove the -cert.pub from file name
-		if priv not in loadedCerts:
-			os.system(f"ssh-add ~/.ssh/{priv}")
+	for pubkey in certs: 
+		if pubkey['contents'] not in loadedCerts:
+			os.system(f"ssh-add ~/.ssh/{pubkey['file'][:-9]}")
 
 
 if __name__ == "__main__":
